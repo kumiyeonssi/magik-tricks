@@ -1,181 +1,652 @@
-<!-- trigger deploy -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Video Gallery</title>
+  <meta name="description" content="Build a personal video gallery from YouTube and Vimeo links." />
+  <title>Magik Tricks Video Gallery</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      color-scheme: light dark;
+      --page: #f5f5f3;
+      --surface: #ffffff;
+      --surface-soft: #ecece8;
+      --text: #1a1a18;
+      --muted: #5f5e59;
+      --border: rgba(26, 26, 24, 0.14);
+      --accent: #3158cc;
+      --accent-hover: #2849ae;
+      --accent-text: #ffffff;
+      --error: #a32929;
+      --radius: 12px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
 
     body {
-      font-family: system-ui, sans-serif;
-      background: #f5f5f3;
-      color: #1a1a18;
-      min-height: 100vh;
-      padding: 2.5rem 1.5rem;
+      min-height: 100dvh;
+      padding: 2.5rem 1.5rem 4rem;
+      background: var(--page);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
     }
 
-    header {
-      max-width: 960px;
-      margin: 0 auto 2rem;
+    button,
+    input {
+      font: inherit;
     }
 
-    header p {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: .06em;
+    button {
+      cursor: pointer;
+    }
+
+    .page-shell {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+    }
+
+    .page-header {
+      max-width: 660px;
+      margin-bottom: 2rem;
+    }
+
+    .eyebrow {
+      margin-bottom: 0.45rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
-      color: #888780;
-      margin-bottom: .4rem;
     }
 
-    header h1 {
-      font-size: 22px;
-      font-weight: 500;
-      color: #1a1a18;
+    h1 {
+      margin-bottom: 0.65rem;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 650;
+      letter-spacing: -0.045em;
+      line-height: 1;
+    }
+
+    .intro {
+      max-width: 56ch;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .add-panel {
+      margin-bottom: 3rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 650;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.65rem;
+    }
+
+    input {
+      min-width: 0;
+      height: 48px;
+      padding: 0 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+      background: var(--page);
+      color: var(--text);
+    }
+
+    input::placeholder {
+      color: var(--muted);
+      opacity: 0.9;
+    }
+
+    input:focus-visible,
+    button:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 32%, transparent);
+      outline-offset: 2px;
+    }
+
+    .add-button {
+      min-width: 112px;
+      height: 48px;
+      padding: 0 1.1rem;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: var(--accent-text);
+      font-weight: 700;
+      transition: background-color 160ms ease, transform 160ms ease;
+    }
+
+    .add-button:hover {
+      background: var(--accent-hover);
+    }
+
+    .add-button:active {
+      transform: translateY(1px);
+    }
+
+    .add-button:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+
+    .field-help,
+    .form-status {
+      margin-top: 0.55rem;
+      color: var(--muted);
+      font-size: 0.8125rem;
+    }
+
+    .form-status:empty {
+      display: none;
+    }
+
+    .form-status[data-state="error"] {
+      color: var(--error);
+    }
+
+    .gallery-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .gallery-heading h2 {
+      font-size: 1.25rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+
+    .gallery-count {
+      color: var(--muted);
+      font-size: 0.8125rem;
     }
 
     .vid-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
       gap: 1.25rem;
-      max-width: 960px;
-      margin: 0 auto;
+      list-style: none;
     }
 
     .vid-card {
-      background: #fff;
-      border: 0.5px solid rgba(0,0,0,0.12);
-      border-radius: 12px;
+      width: 100%;
+      max-width: 500px;
+      min-width: 0;
       overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
     }
 
     .vid-wrap {
       position: relative;
-      padding-bottom: 56.25%;
-      height: 0;
+      aspect-ratio: 16 / 9;
+      background: var(--surface-soft);
     }
 
     .vid-wrap iframe {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      border: none;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
     }
 
     .vid-meta {
-      padding: .75rem 1rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem 1rem;
     }
 
-    .vid-meta strong {
+    .vid-copy {
+      min-width: 0;
+    }
+
+    .vid-copy strong,
+    .vid-copy span {
       display: block;
-      font-size: 14px;
-      font-weight: 500;
-      color: #1a1a18;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .vid-meta span {
-      font-size: 13px;
-      color: #888780;
+    .vid-copy strong {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+
+    .vid-copy span {
+      margin-top: 0.1rem;
+      color: var(--muted);
+      font-size: 0.8125rem;
+    }
+
+    .remove-button {
+      padding: 0.2rem 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+    }
+
+    .remove-button:hover {
+      color: var(--error);
+    }
+
+    .empty-state {
+      padding: 3rem 1.25rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 1.75rem 1rem 3rem;
+      }
+
+      .page-header {
+        margin-bottom: 1.5rem;
+      }
+
+      .add-panel {
+        margin-bottom: 2.25rem;
+        padding: 1rem;
+      }
+
+      .input-row {
+        grid-template-columns: 1fr;
+      }
+
+      .add-button {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
     }
 
     @media (prefers-color-scheme: dark) {
-      body { background: #1a1a18; color: #f1efe8; }
-      header h1 { color: #f1efe8; }
-      .vid-card { background: #2c2c2a; border-color: rgba(255,255,255,0.1); }
-      .vid-meta strong { color: #f1efe8; }
+      :root {
+        --page: #181816;
+        --surface: #292927;
+        --surface-soft: #343431;
+        --text: #f1efe8;
+        --muted: #aaa9a0;
+        --border: rgba(241, 239, 232, 0.14);
+        --accent: #8aa4ff;
+        --accent-hover: #9db3ff;
+        --accent-text: #161b2d;
+        --error: #ff9992;
+      }
     }
   </style>
 </head>
 <body>
+  <main class="page-shell">
+    <header class="page-header">
+      <p class="eyebrow">Magik Tricks</p>
+      <h1>Build your video gallery</h1>
+      <p class="intro">Paste a YouTube or Vimeo link and the gallery will fill in the video details for you.</p>
+    </header>
 
-  <header>
-    <p>Featured videos</p>
-    <h1>Video Gallery</h1>
-  </header>
+    <form class="add-panel" id="video-form" novalidate>
+      <label class="field-label" for="video-url">Video URL</label>
+      <div class="input-row">
+        <input
+          id="video-url"
+          name="video-url"
+          type="url"
+          inputmode="url"
+          autocomplete="url"
+          placeholder="https://youtube.com/watch?v=..."
+          aria-describedby="url-help form-status"
+          required
+        />
+        <button class="add-button" type="submit">Add video</button>
+      </div>
+      <p class="field-help" id="url-help">Supports YouTube, YouTube Shorts, and Vimeo links.</p>
+      <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+    </form>
 
-  <div class="vid-grid">
+    <section aria-labelledby="gallery-title">
+      <div class="gallery-heading">
+        <h2 id="gallery-title">Your videos</h2>
+        <p class="gallery-count" id="gallery-count">0 videos</p>
+      </div>
+      <div class="empty-state" id="empty-state">
+        <strong>Your gallery is empty</strong>
+        Add your first video using the field above.
+      </div>
+      <ul class="vid-grid" id="video-grid" aria-live="polite"></ul>
+    </section>
+  </main>
 
-    <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="Rick Astley – Never Gonna Give You Up"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>Never Gonna Give You Up</strong>
-        <span>Rick Astley · YouTube</span>
-      </div>
-    </div>
+  <script>
+    const STORAGE_KEY = "magik-tricks-videos";
+    const form = document.querySelector("#video-form");
+    const urlInput = document.querySelector("#video-url");
+    const submitButton = form.querySelector("button[type='submit']");
+    const formStatus = document.querySelector("#form-status");
+    const galleryCount = document.querySelector("#gallery-count");
+    const emptyState = document.querySelector("#empty-state");
+    const videoGrid = document.querySelector("#video-grid");
 
-    <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="PSY – GANGNAM STYLE"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>GANGNAM STYLE</strong>
-        <span>PSY · YouTube</span>
-      </div>
-    </div>
+    let videos = loadVideos();
 
-    <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="Shape of You – Ed Sheeran"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>Shape of You</strong>
-        <span>Ed Sheeran · YouTube</span>
-      </div>
-    </div>
+    function cleanText(value, fallback) {
+      const text = typeof value === "string" ? value.trim() : "";
+      return (text || fallback).replace(/[\u2013\u2014]/g, "-");
+    }
 
-    <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="The Mountain – Vimeo"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>The Mountain</strong>
-        <span>Terje Sorgjerd · Vimeo</span>
-      </div>
-    </div>
+    function normalizeInput(rawValue) {
+      const trimmed = rawValue.trim();
+      if (!trimmed) {
+        throw new Error("Enter a video URL first.");
+      }
 
-     <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="The Mountain – Vimeo"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>The Mountain</strong>
-        <span>Terje Sorgjerd · Vimeo</span>
-      </div>
-    </div>
+      return /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(trimmed)
+        ? trimmed
+        : `https://${trimmed}`;
+    }
 
-     <div class="vid-card">
-      <div class="vid-wrap">
-        <iframe src="https://www.youtube.com/embed/TcgwZKImVec"
-          title="The Mountain – Vimeo"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen></iframe>
-      </div>
-      <div class="vid-meta">
-        <strong>The Mountain</strong>
-        <span>Terje Sorgjerd · Vimeo</span>
-      </div>
-    </div>
+    function parseVideoUrl(rawValue) {
+      let url;
 
-  </div>
+      try {
+        url = new URL(normalizeInput(rawValue));
+      } catch {
+        throw new Error("Enter a complete YouTube or Vimeo URL.");
+      }
 
+      const host = url.hostname.toLowerCase().replace(/^www\./, "");
+      const pathParts = url.pathname.split("/").filter(Boolean);
+      let videoId = "";
+
+      const isYouTube = host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com");
+
+      if (isYouTube) {
+        if (host === "youtu.be") {
+          videoId = pathParts[0] || "";
+        } else if (url.pathname === "/watch") {
+          videoId = url.searchParams.get("v") || "";
+        } else if (["embed", "shorts", "live"].includes(pathParts[0])) {
+          videoId = pathParts[1] || "";
+        }
+
+        if (!/^[a-zA-Z0-9_-]{6,}$/.test(videoId)) {
+          throw new Error("That YouTube link does not include a valid video ID.");
+        }
+
+        return {
+          key: `youtube:${videoId}`,
+          provider: "YouTube",
+          videoId,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+          oEmbedUrl: `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`
+        };
+      }
+
+      const isVimeo = host === "vimeo.com" || host.endsWith(".vimeo.com");
+
+      if (isVimeo) {
+        videoId = [...pathParts].reverse().find((part) => /^\d+$/.test(part)) || "";
+
+        if (!videoId) {
+          throw new Error("That Vimeo link does not include a valid video ID.");
+        }
+
+        return {
+          key: `vimeo:${videoId}`,
+          provider: "Vimeo",
+          videoId,
+          url: `https://vimeo.com/${videoId}`,
+          embedUrl: `https://player.vimeo.com/video/${videoId}`,
+          oEmbedUrl: `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${videoId}`)}`
+        };
+      }
+
+      throw new Error("Only YouTube and Vimeo links are supported right now.");
+    }
+
+    function getVimeoJsonp(oEmbedUrl) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `magikTricksVimeo${Date.now()}${Math.random().toString(16).slice(2)}`;
+        const script = document.createElement("script");
+        const timeout = window.setTimeout(() => finish(new Error("Vimeo metadata timed out.")), 7000);
+
+        function cleanup() {
+          window.clearTimeout(timeout);
+          script.remove();
+          delete window[callbackName];
+        }
+
+        function finish(error, data) {
+          cleanup();
+          error ? reject(error) : resolve(data);
+        }
+
+        window[callbackName] = (data) => finish(null, data);
+        script.src = `${oEmbedUrl}&callback=${encodeURIComponent(callbackName)}`;
+        script.onerror = () => finish(new Error("Vimeo metadata could not be loaded."));
+        document.head.append(script);
+      });
+    }
+
+    async function getVideoDetails(parsedVideo) {
+      const fallback = {
+        title: `${parsedVideo.provider} video`,
+        author: parsedVideo.provider
+      };
+
+      let data = null;
+
+      try {
+        const response = await fetch(parsedVideo.oEmbedUrl);
+        if (response.ok) {
+          data = await response.json();
+        }
+      } catch {
+        data = null;
+      }
+
+      if (!data && parsedVideo.provider === "Vimeo") {
+        try {
+          data = await getVimeoJsonp(parsedVideo.oEmbedUrl);
+        } catch {
+          data = null;
+        }
+      }
+
+      return data ? {
+        title: cleanText(data.title, fallback.title),
+        author: cleanText(data.author_name, fallback.author)
+      } : fallback;
+    }
+
+    function loadVideos() {
+      try {
+        const savedVideos = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        if (!Array.isArray(savedVideos)) {
+          return [];
+        }
+
+        return savedVideos.flatMap((savedVideo) => {
+          try {
+            const parsedVideo = parseVideoUrl(savedVideo.url);
+            return [{
+              ...parsedVideo,
+              title: cleanText(savedVideo.title, `${parsedVideo.provider} video`),
+              author: cleanText(savedVideo.author, parsedVideo.provider)
+            }];
+          } catch {
+            return [];
+          }
+        });
+      } catch {
+        return [];
+      }
+    }
+
+    function saveVideos() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(videos.map(({ key, provider, videoId, url, embedUrl, title, author }) => ({
+          key,
+          provider,
+          videoId,
+          url,
+          embedUrl,
+          title,
+          author
+        }))));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function setStatus(message = "", state = "") {
+      formStatus.textContent = message;
+      formStatus.dataset.state = state;
+    }
+
+    function createVideoCard(video) {
+      const card = document.createElement("li");
+      card.className = "vid-card";
+
+      const videoWrap = document.createElement("div");
+      videoWrap.className = "vid-wrap";
+
+      const iframe = document.createElement("iframe");
+      iframe.src = video.embedUrl;
+      iframe.title = `${video.title} video player`;
+      iframe.loading = "lazy";
+      iframe.referrerPolicy = "strict-origin-when-cross-origin";
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+      iframe.allowFullscreen = true;
+
+      const meta = document.createElement("div");
+      meta.className = "vid-meta";
+
+      const copy = document.createElement("div");
+      copy.className = "vid-copy";
+
+      const title = document.createElement("strong");
+      title.textContent = video.title;
+      title.title = video.title;
+
+      const byline = document.createElement("span");
+      byline.textContent = `${video.author} / ${video.provider}`;
+
+      const removeButton = document.createElement("button");
+      removeButton.className = "remove-button";
+      removeButton.type = "button";
+      removeButton.textContent = "Remove";
+      removeButton.setAttribute("aria-label", `Remove ${video.title}`);
+      removeButton.addEventListener("click", () => removeVideo(video.key));
+
+      videoWrap.append(iframe);
+      copy.append(title, byline);
+      meta.append(copy, removeButton);
+      card.append(videoWrap, meta);
+
+      return card;
+    }
+
+    function renderGallery() {
+      videoGrid.replaceChildren(...videos.map(createVideoCard));
+      emptyState.hidden = videos.length > 0;
+      videoGrid.hidden = videos.length === 0;
+      galleryCount.textContent = `${videos.length} ${videos.length === 1 ? "video" : "videos"}`;
+    }
+
+    function removeVideo(videoKey) {
+      videos = videos.filter((video) => video.key !== videoKey);
+      saveVideos();
+      renderGallery();
+      setStatus("Video removed.");
+      urlInput.focus();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setStatus();
+
+      let parsedVideo;
+      try {
+        parsedVideo = parseVideoUrl(urlInput.value);
+      } catch (error) {
+        setStatus(error.message, "error");
+        urlInput.focus();
+        return;
+      }
+
+      if (videos.some((video) => video.key === parsedVideo.key)) {
+        setStatus("That video is already in your gallery.", "error");
+        urlInput.select();
+        return;
+      }
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Adding...";
+      setStatus("Fetching video details.");
+
+      const details = await getVideoDetails(parsedVideo);
+      videos = [{ ...parsedVideo, ...details }, ...videos];
+      const wasSaved = saveVideos();
+      renderGallery();
+
+      form.reset();
+      submitButton.disabled = false;
+      submitButton.textContent = "Add video";
+      setStatus(wasSaved
+        ? "Video added to your gallery."
+        : "Video added for this visit, but browser storage is unavailable.");
+      urlInput.focus();
+    });
+
+    renderGallery();
+  </script>
 </body>
 </html>
