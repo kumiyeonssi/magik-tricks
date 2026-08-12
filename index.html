@@ -184,6 +184,30 @@
       font-size: 0.8125rem;
     }
 
+    .gallery-actions {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+
+    .clear-button {
+      padding: 0.2rem 0.45rem;
+      border: 0;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8125rem;
+      font-weight: 650;
+    }
+
+    .clear-button:hover {
+      color: var(--error);
+    }
+
+    .clear-button:active {
+      transform: translateY(1px);
+    }
+
     .vid-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
@@ -352,7 +376,10 @@
     <section aria-labelledby="gallery-title">
       <div class="gallery-heading">
         <h2 id="gallery-title">Your videos</h2>
-        <p class="gallery-count" id="gallery-count">0 videos</p>
+        <div class="gallery-actions">
+          <p class="gallery-count" id="gallery-count">0 videos</p>
+          <button class="clear-button" id="clear-all" type="button" hidden>Clear all</button>
+        </div>
       </div>
       <div class="empty-state" id="empty-state">
         <strong>Your gallery is empty</strong>
@@ -369,6 +396,7 @@
     const submitButton = form.querySelector("button[type='submit']");
     const formStatus = document.querySelector("#form-status");
     const galleryCount = document.querySelector("#gallery-count");
+    const clearAllButton = document.querySelector("#clear-all");
     const emptyState = document.querySelector("#empty-state");
     const videoGrid = document.querySelector("#video-grid");
 
@@ -377,6 +405,14 @@
     function cleanText(value, fallback) {
       const text = typeof value === "string" ? value.trim() : "";
       return (text || fallback).replace(/[\u2013\u2014]/g, "-");
+    }
+
+    function createEntryId(videoKey) {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return `${videoKey}:${crypto.randomUUID()}`;
+      }
+
+      return `${videoKey}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
     }
 
     function normalizeInput(rawValue) {
@@ -517,6 +553,7 @@
             const parsedVideo = parseVideoUrl(savedVideo.url);
             return [{
               ...parsedVideo,
+              entryId: savedVideo.entryId || createEntryId(parsedVideo.key),
               title: cleanText(savedVideo.title, `${parsedVideo.provider} video`),
               author: cleanText(savedVideo.author, parsedVideo.provider)
             }];
@@ -531,7 +568,8 @@
 
     function saveVideos() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(videos.map(({ key, provider, videoId, url, embedUrl, title, author }) => ({
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(videos.map(({ entryId, key, provider, videoId, url, embedUrl, title, author }) => ({
+          entryId,
           key,
           provider,
           videoId,
@@ -584,7 +622,7 @@
       removeButton.type = "button";
       removeButton.textContent = "Remove";
       removeButton.setAttribute("aria-label", `Remove ${video.title}`);
-      removeButton.addEventListener("click", () => removeVideo(video.key));
+      removeButton.addEventListener("click", () => removeVideo(video.entryId));
 
       videoWrap.append(iframe);
       copy.append(title, byline);
@@ -598,16 +636,31 @@
       videoGrid.replaceChildren(...videos.map(createVideoCard));
       emptyState.hidden = videos.length > 0;
       videoGrid.hidden = videos.length === 0;
+      clearAllButton.hidden = videos.length === 0;
       galleryCount.textContent = `${videos.length} ${videos.length === 1 ? "video" : "videos"}`;
     }
 
-    function removeVideo(videoKey) {
-      videos = videos.filter((video) => video.key !== videoKey);
+    function removeVideo(entryId) {
+      videos = videos.filter((video) => video.entryId !== entryId);
       saveVideos();
       renderGallery();
       setStatus("Video removed.");
       urlInput.focus();
     }
+
+    function clearGallery() {
+      if (!window.confirm("Remove all videos from this gallery?")) {
+        return;
+      }
+
+      videos = [];
+      saveVideos();
+      renderGallery();
+      setStatus("Gallery cleared. Add a video to start again.");
+      urlInput.focus();
+    }
+
+    clearAllButton.addEventListener("click", clearGallery);
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -622,18 +675,16 @@
         return;
       }
 
-      if (videos.some((video) => video.key === parsedVideo.key)) {
-        setStatus("That video is already in your gallery.", "error");
-        urlInput.select();
-        return;
-      }
-
       submitButton.disabled = true;
       submitButton.textContent = "Adding...";
       setStatus("Fetching video details.");
 
       const details = await getVideoDetails(parsedVideo);
-      videos = [{ ...parsedVideo, ...details }, ...videos];
+      videos = [{
+        ...parsedVideo,
+        ...details,
+        entryId: createEntryId(parsedVideo.key)
+      }, ...videos];
       const wasSaved = saveVideos();
       renderGallery();
 
